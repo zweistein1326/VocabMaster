@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { vocabularyMasterList } from '@/lib/vocabData';
 import Dashboard from '@/components/Dashboard';
+import Link from 'next/link';
 
 export default function Home() {
   const [currentDay, setCurrentDay] = useState("Day 1");
@@ -108,6 +109,22 @@ export default function Home() {
           onClick={() => setIndex(Math.min(words.length - 1, index + 1))}
           className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold"
         >Next</button>
+      </div>
+      <div className="mt-12 p-6 bg-blue-50 rounded-2xl border-2 border-dashed border-blue-200 text-center w-full max-w-sm">
+        <h3 className="text-blue-800 font-bold mb-2">Feeling Confident?</h3>
+        <p className="text-blue-600 text-sm mb-4">
+          Test your retention of today&apos;s {words.length} words.
+        </p>
+        <Link 
+          href={{
+            pathname: '/quiz',
+            query: { day: currentDay }, // Passes "Day 1", "Day 2", etc.
+          }}
+        >
+          <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-transform active:scale-95 shadow-lg">
+            🚀 Start Day Quiz
+          </button>
+        </Link>
       </div>
     </main>
   );
