@@ -1,130 +1,46 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { vocabularyMasterList } from '@/lib/vocabData';
-import Dashboard from '@/components/Dashboard';
 import Link from 'next/link';
+import HeatmapDashboard from '@/components/HeatmapDashboard';
+import { getNextIncompleteDay } from '@/lib/progressTracker';
 
 export default function Home() {
-  const [currentDay, setCurrentDay] = useState("Day 1");
-  const [index, setIndex] = useState(0);
-  const [wordData, setWordData] = useState({ definition: '', example: '', loading: false });
-  const [mastered, setMastered] = useState([]);
-  const [isFlipped, setIsFlipped] = useState(false);
+  const [targetDay, setTargetDay] = useState("Day 1");
 
-  const words = vocabularyMasterList[currentDay];
-  const currentWord = words[index];
-
-  // Load progress from LocalStorage
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('masteredWords')) || [];
-    setMastered(saved);
+    const refreshProgress = () => {
+      let targetDay = getNextIncompleteDay();
+      setTargetDay(targetDay);
+    };
+
+    refreshProgress();
+    window.addEventListener('focus', refreshProgress); // Re-check when user returns to dashboard
+    return () => window.removeEventListener('focus', refreshProgress);
   }, []);
 
-  // Fetch Definition from API
-  useEffect(() => {
-    async function getDef() {
-      setWordData({ ...wordData, loading: true });
-      try {
-        const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${currentWord}`);
-        const data = await res.json();
-        setWordData({
-          definition: data[0].meanings[0].definitions[0].definition,
-          example: data[0].meanings[0].definitions[0].example || "No example found.",
-          loading: false
-        });
-      } catch (err) {
-        setWordData({ definition: "Not found", example: "", loading: false });
-      }
-    }
-    setIsFlipped(false);
-    getDef();
-  }, [index, currentDay]);
-
-  const toggleMastery = () => {
-    let updated = mastered.includes(currentWord) 
-      ? mastered.filter(w => w !== currentWord) 
-      : [...mastered, currentWord];
-    setMastered(updated);
-    localStorage.setItem('masteredWords', JSON.stringify(updated));
-  };
-
-  const speak = () => {
-    const msg = new SpeechSynthesisUtterance(currentWord);
-    window.speechSynthesis.speak(msg);
-  };
-
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col items-center p-8 text-black">
-      <Dashboard masteredCount={mastered.length} />
+    <main className="min-h-screen bg-gray-50 flex flex-col items-center p-8 gap-8">
+      {/* 1. Heatmap Dashboard */}
+      <HeatmapDashboard />
 
-      <h1 className="text-2xl font-bold mb-4">{currentDay}</h1>
-      <div className="mb-6">
-        <select 
-          value={currentDay} 
-          onChange={(e) => {
-            setCurrentDay(e.target.value);
-            setIndex(0);
-          }}
-          className="p-2 border rounded-md shadow-sm bg-white"
-        >
-          {Object.keys(vocabularyMasterList).map(day => (
-            <option key={day} value={day}>{day}</option>
-          ))}
-        </select>
-      </div>
-      <div 
-        onClick={() => setIsFlipped(!isFlipped)}
-        className={`w-full max-w-sm h-64 bg-white rounded-2xl shadow-lg cursor-pointer transition-transform duration-500 preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}
-        style={{ perspective: '1000px' }}
-      >
-        <div className="p-8 flex flex-col items-center justify-center h-full text-center">
-          {!isFlipped ? (
-            <div>
-              <h2 className="text-4xl font-serif">{currentWord}</h2>
-              <p className="text-gray-400 mt-2 italic">Click to reveal</p>
-            </div>
-          ) : (
-            <div className="rotate-y-180">
-              <p className="text-sm font-bold text-blue-600 uppercase">Definition</p>
-              <p className="text-gray-700 mb-4">{wordData.definition}</p>
-              <p className="text-sm italic text-gray-500">"{wordData.example}"</p>
-            </div>
-          )}
+      {/* 2. Today's Lesson Action Card */}
+      <div className="w-full max-w-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-3xl shadow-xl text-white">
+        <h3 className="text-blue-100 uppercase text-xs font-black tracking-widest mb-2">Your Next Milestone</h3>
+        <h2 className="text-3xl font-bold mb-6">Ready for {targetDay}?</h2>
+        
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Link href={`/learn/${targetDay.replace(' ', '-').toLowerCase()}`} className="flex-1">
+            <button className="w-full bg-white text-blue-700 font-bold py-4 rounded-2xl hover:bg-blue-50 transition-colors shadow-lg">
+              📖 Study 20 New Words
+            </button>
+          </Link>
+          
+          <Link href={`/quiz/${targetDay.replace(' ', '-').toLowerCase()}`} className="flex-1">
+            <button className="w-full bg-transparent border-2 border-white/30 hover:border-white text-white font-bold py-4 rounded-2xl transition-all">
+              🎯 Take the Quiz
+            </button>
+          </Link>
         </div>
-      </div>
-
-      <div className="flex gap-4 mt-8">
-        <button onClick={speak} className="bg-purple-100 p-3 rounded-full">🔊</button>
-        <button 
-          onClick={() => setIndex(Math.max(0, index - 1))}
-          className="bg-gray-200 px-6 py-2 rounded-lg font-bold"
-        >Prev</button>
-        <button 
-          onClick={toggleMastery}
-          className={`${mastered.includes(currentWord) ? 'bg-green-500' : 'bg-yellow-500'} text-white px-6 py-2 rounded-lg font-bold`}
-        >
-          {mastered.includes(currentWord) ? '✓ Mastered' : 'Master Word'}
-        </button>
-        <button 
-          onClick={() => setIndex(Math.min(words.length - 1, index + 1))}
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold"
-        >Next</button>
-      </div>
-      <div className="mt-12 p-6 bg-blue-50 rounded-2xl border-2 border-dashed border-blue-200 text-center w-full max-w-sm">
-        <h3 className="text-blue-800 font-bold mb-2">Feeling Confident?</h3>
-        <p className="text-blue-600 text-sm mb-4">
-          Test your retention of today&apos;s {words.length} words.
-        </p>
-        <Link 
-          href={{
-            pathname: '/quiz',
-            query: { day: currentDay }, // Passes "Day 1", "Day 2", etc.
-          }}
-        >
-          <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-transform active:scale-95 shadow-lg">
-            🚀 Start Day Quiz
-          </button>
-        </Link>
       </div>
     </main>
   );

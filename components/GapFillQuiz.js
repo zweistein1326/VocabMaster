@@ -50,6 +50,17 @@ export default function GapFillQuiz({ words, day }) {
     prepareFullQuiz();
   }, [prepareFullQuiz]);
 
+  const finishQuiz = (finalScore) => {
+    const today = new Date().toISOString().split('T')[0];
+    const history = JSON.parse(localStorage.getItem('quizScores')) || {};
+    
+    // Only update if the new score is higher than a previous attempt today
+    if (!history[today] || finalScore > history[today]) {
+      history[today] = finalScore;
+      localStorage.setItem('quizScores', JSON.stringify(history));
+    }
+  };
+
   const handleAnswer = (selected) => {
     if (selectedAnswer) return; // Prevent multiple clicks
 
@@ -77,7 +88,28 @@ export default function GapFillQuiz({ words, day }) {
         }
         setShowResults(true);
       }
+      finishQuiz();
+      saveProgress()
     }, 1500);
+  };
+
+  const saveProgress = (finalScore, dayName) => {
+    // Use local time, not UTC ISO string
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    
+    const history = JSON.parse(localStorage.getItem('vocabHistory')) || {};
+    
+    // Save both the score for the heatmap and the dayName for the "Next Day" button
+    history[dateStr] = {
+      score: finalScore,
+      dayName: dayName
+    };
+    
+    localStorage.setItem('vocabHistory', JSON.stringify(history));
+    
+    // Dispatch a storage event so the dashboard on the other page updates
+    window.dispatchEvent(new Event('storage'));
   };
 
   const retakeMissed = () => {
